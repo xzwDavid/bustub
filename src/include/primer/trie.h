@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <future>  // NOLINT
+#include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
@@ -11,7 +12,6 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <iostream>
 namespace bustub {
 
 /// A special type that will block the move constructor and move assignment operator. Used in TrieStore tests.
