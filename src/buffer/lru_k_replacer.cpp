@@ -36,7 +36,7 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
         // Frame with less than k historical references, treat it as having +inf backward k-distance
         max_distance = std::numeric_limits<size_t>::max();
         size_t distance_latest = current_timestamp_ - node.history_.front();
-        if(distance_latest_max <= distance_latest){
+        if (distance_latest_max <= distance_latest) {
           distance_latest_max = distance_latest;
           victim_frame = entry.first;
         }
@@ -59,14 +59,13 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   }
 
   return false;
-
 }
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
   std::lock_guard<std::mutex> lock(latch_);
   auto it = node_store_.find(frame_id);
-  if(it == node_store_.end()){
-    replacer_size_ --;
+  if (it == node_store_.end()) {
+    replacer_size_--;
   }
   current_timestamp_++;
   node_store_[frame_id].history_.push_back(current_timestamp_);
@@ -83,30 +82,27 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
       it->second.is_evictable_ = set_evictable;
       if (set_evictable) {
         curr_size_++;
-      }else{
+      } else {
         curr_size_--;
       }
     }
-  }else if(set_evictable){
+  } else if (set_evictable) {
     throw Exception("NO Frame Found!");
   }
-
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
   std::lock_guard<std::mutex> lock(latch_);
 
   auto it = node_store_.find(frame_id);
-  if(it !=node_store_.end()){
-    if(it->second.is_evictable_){
+  if (it != node_store_.end()) {
+    if (it->second.is_evictable_) {
       node_store_.erase(it);
       curr_size_--;
-    }else{
+    } else {
       throw Exception("This frame is non-evictable");
     }
   }
-
-
 }
 
 auto LRUKReplacer::Size() -> size_t {

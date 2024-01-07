@@ -30,32 +30,30 @@ DiskScheduler::~DiskScheduler() {
   }
 }
 
-void DiskScheduler::Schedule(DiskRequest r) {
-  request_queue_.Put(std::make_optional(std::move(r)));
-}
+void DiskScheduler::Schedule(DiskRequest r) { request_queue_.Put(std::make_optional(std::move(r))); }
 
 void DiskScheduler::StartWorkerThread() {
-    while (true) {
-      // Take a request from the queue
-      auto optional_request = request_queue_.Get();
-      // Check if it's time to shut down the worker
-      if (!optional_request.has_value()) {
-        break;
-      }
-
-      // Use std::move to transfer ownership of the request, enabling use of its move constructor
-      DiskRequest request = std::move(optional_request.value());
-
-      // Process the disk request based on its type
-      if (request.is_write_) {
-        disk_manager_->WritePage(request.page_id_, request.data_);
-      } else {
-        disk_manager_->ReadPage(request.page_id_, request.data_);
-      }
-
-      // Fulfill the promise, signaling that the request has been processed
-      request.callback_.set_value(true);
+  while (true) {
+    // Take a request from the queue
+    auto optional_request = request_queue_.Get();
+    // Check if it's time to shut down the worker
+    if (!optional_request.has_value()) {
+      break;
     }
+
+    // Use std::move to transfer ownership of the request, enabling use of its move constructor
+    DiskRequest request = std::move(optional_request.value());
+
+    // Process the disk request based on its type
+    if (request.is_write_) {
+      disk_manager_->WritePage(request.page_id_, request.data_);
+    } else {
+      disk_manager_->ReadPage(request.page_id_, request.data_);
+    }
+
+    // Fulfill the promise, signaling that the request has been processed
+    request.callback_.set_value(true);
   }
+}
 
 }  // namespace bustub

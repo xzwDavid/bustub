@@ -41,9 +41,9 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   // Check if there are any free frames or any frames that can be evicted.
   if (free_list_.empty() && replacer_->Size() == 0) {
     *page_id = INVALID_PAGE_ID;  // No available frames.
-//    throw Exception("Fuck you");
-//    std::cout<<"hhh"<<std::endl;
-    return nullptr;  // No new page can be created.
+                                 //    throw Exception("Fuck you");
+                                 //    std::cout<<"hhh"<<std::endl;
+    return nullptr;              // No new page can be created.
   }
 
   frame_id_t frame_id = -1;
@@ -58,7 +58,6 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
       *page_id = INVALID_PAGE_ID;
       return nullptr;  // Failed to evict a frame.
     }
-
   }
 
   // Flush the page to disk if it is dirty before reusing the frame.
@@ -67,25 +66,23 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
     FlushPage(frame->GetPageId());
   }
 
-
-//  page_table_.erase(frame_id);
-  for(auto it:page_table_){
-    if(it.second == frame_id){
+  //  page_table_.erase(frame_id);
+  for (auto it : page_table_) {
+    if (it.second == frame_id) {
       page_table_.erase(it.first);
       break;
     }
   }
-
 
   // Allocate a new page ID and set up the page.
   *page_id = AllocatePage();
   page_table_[*page_id] = frame_id;  // Link new page ID with the frame in the page table.
 
   // Reset the page contents and metadata.
-  frame->ResetMemory();  // Reset the page memory to default values.
+  frame->ResetMemory();        // Reset the page memory to default values.
   frame->page_id_ = *page_id;  // Set the page ID of the page.
-  frame->is_dirty_ = false;  // New page is not dirty.
-  frame->pin_count_ = 1;  // New page starts with a pin count of 1.
+  frame->is_dirty_ = false;    // New page is not dirty.
+  frame->pin_count_ = 1;       // New page starts with a pin count of 1.
 
   // Indicate to the replacer that this frame is not evictable until it is unpinned.
   replacer_->SetEvictable(frame_id, false);
@@ -99,148 +96,144 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
 
   // Check if page is already in buffer pool.
   auto page_table_it = page_table_.find(page_id);
-  if(page_table_it != page_table_.end()) {
-        frame_id_t frame_id = page_table_it->second;
-        replacer_->SetEvictable(frame_id, false);
-        pages_[frame_id].pin_count_++;
-        return &pages_[frame_id];
+  if (page_table_it != page_table_.end()) {
+    frame_id_t frame_id = page_table_it->second;
+    replacer_->SetEvictable(frame_id, false);
+    pages_[frame_id].pin_count_++;
+    return &pages_[frame_id];
   }
 
   // Find a frame for replacement.
   frame_id_t frame_id = INVALID_PAGE_ID;
-  if(!free_list_.empty()) {
-        frame_id = free_list_.front();
-        free_list_.pop_front();
-  } else if(replacer_->Evict(&frame_id)) {
-        // Evict an old page.
-        if(pages_[frame_id].IsDirty()) {
-          // Flush dirty page to disk.
-          FlushPage(pages_[frame_id].GetPageId());
-        }
-        // Remove from page table.
-        page_table_.erase(pages_[frame_id].GetPageId());
+  if (!free_list_.empty()) {
+    frame_id = free_list_.front();
+    free_list_.pop_front();
+  } else if (replacer_->Evict(&frame_id)) {
+    // Evict an old page.
+    if (pages_[frame_id].IsDirty()) {
+      // Flush dirty page to disk.
+      FlushPage(pages_[frame_id].GetPageId());
+    }
+    // Remove from page table.
+    page_table_.erase(pages_[frame_id].GetPageId());
   }
 
-  if(frame_id != INVALID_PAGE_ID) {
-        // Load the requested page into the frame.
-        Page *page = &pages_[frame_id];
-//        disk_scheduler_->ScheduleRead(page, page_id);
-        auto promise = disk_scheduler_->CreatePromise();
-        auto future = promise.get_future();
-        DiskRequest request = {false, page->data_, page_id,std::move(promise)};
-        disk_scheduler_->Schedule(std::move(request));
+  if (frame_id != INVALID_PAGE_ID) {
+    // Load the requested page into the frame.
+    Page *page = &pages_[frame_id];
+    //        disk_scheduler_->ScheduleRead(page, page_id);
+    auto promise = disk_scheduler_->CreatePromise();
+    auto future = promise.get_future();
+    DiskRequest request = {false, page->data_, page_id, std::move(promise)};
+    disk_scheduler_->Schedule(std::move(request));
 
-        if(future.get()){
-          page->page_id_ = page_id;
-          page->pin_count_ = 1;  // Pin the page.
-          page->is_dirty_ = false;
-          page_table_[page_id] = frame_id;
-          replacer_->SetEvictable(frame_id, false);
-          replacer_->RecordAccess(frame_id);
-          return page;
-        }
+    if (future.get()) {
+      page->page_id_ = page_id;
+      page->pin_count_ = 1;  // Pin the page.
+      page->is_dirty_ = false;
+      page_table_[page_id] = frame_id;
+      replacer_->SetEvictable(frame_id, false);
+      replacer_->RecordAccess(frame_id);
+      return page;
+    }
   }
 
   // No available frame or eviction failed.
   return nullptr;
 }
 
-
-
 auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
   std::lock_guard<std::mutex> lock(latch_);
 
   auto page_table_it = page_table_.find(page_id);
-  if(page_table_it == page_table_.end()) {
-        return false;  // Page not found.
+  if (page_table_it == page_table_.end()) {
+    return false;  // Page not found.
   }
 
   frame_id_t frame_id = page_table_it->second;
   Page *page = &pages_[frame_id];
-  if(page->pin_count_ <= 0) {
-        return false;  // Page not pinned.
+  if (page->pin_count_ <= 0) {
+    return false;  // Page not pinned.
   }
 
   page->pin_count_--;
-  if(page->pin_count_ == 0) {
-        replacer_->SetEvictable(frame_id, true);
+  if (page->pin_count_ == 0) {
+    replacer_->SetEvictable(frame_id, true);
   }
-  if(is_dirty) {
-        page->is_dirty_ = true;
+  if (is_dirty) {
+    page->is_dirty_ = true;
   }
 
   return true;
 }
 
-
 auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
   auto page_table_it = page_table_.find(page_id);
-  if(page_table_it == page_table_.end()) {
-        return false;  // Page not found.
+  if (page_table_it == page_table_.end()) {
+    return false;  // Page not found.
   }
 
   frame_id_t frame_id = page_table_it->second;
   Page *page = &pages_[frame_id];
-  if(page->is_dirty_) {
-        auto promise = disk_scheduler_->CreatePromise();
-        auto future = promise.get_future();
-        DiskRequest request = {true, page->data_, page_id, std::move(promise)};
-        disk_scheduler_->Schedule(std::move(request));
+  if (page->is_dirty_) {
+    auto promise = disk_scheduler_->CreatePromise();
+    auto future = promise.get_future();
+    DiskRequest request = {true, page->data_, page_id, std::move(promise)};
+    disk_scheduler_->Schedule(std::move(request));
 
-        if (future.get()) {
-          // The write operation was successful.
-            page->is_dirty_ = false;
-        }else{
-            throw Exception("Write failure");
-        }
-//        auto promise_read = disk_scheduler_->CreatePromise();
-//        auto future_read = promise_read.get_future();
-//        char data[BUSTUB_PAGE_SIZE] = {0};
-//        DiskRequest request_read = {false, data, page_id,std::move(promise_read)};
-//        disk_scheduler_->Schedule(std::move(request_read));
-//        if(!future_read.get()){
-//            throw Exception("Read failure!");
-//        }
-//        std::cout<<"page_data: "<<page->data_<<std::endl<<"data: "<<data<<std::endl<<sizeof(page->data_)<<std::endl;
+    if (future.get()) {
+      // The write operation was successful.
+      page->is_dirty_ = false;
+    } else {
+      throw Exception("Write failure");
+    }
+    //        auto promise_read = disk_scheduler_->CreatePromise();
+    //        auto future_read = promise_read.get_future();
+    //        char data[BUSTUB_PAGE_SIZE] = {0};
+    //        DiskRequest request_read = {false, data, page_id,std::move(promise_read)};
+    //        disk_scheduler_->Schedule(std::move(request_read));
+    //        if(!future_read.get()){
+    //            throw Exception("Read failure!");
+    //        }
+    //        std::cout<<"page_data: "<<page->data_<<std::endl<<"data:
+    //        "<<data<<std::endl<<sizeof(page->data_)<<std::endl;
   }
   return true;
 }
 
 void BufferPoolManager::FlushAllPages() {
-
   for (auto &page_entry : page_table_) {
-        page_id_t page_id = page_entry.first;
-        frame_id_t frame_id = page_entry.second;
-        Page *page = &pages_[frame_id];
+    page_id_t page_id = page_entry.first;
+    frame_id_t frame_id = page_entry.second;
+    Page *page = &pages_[frame_id];
 
-        if (page->is_dirty_) {
-
-            auto promise = disk_scheduler_->CreatePromise();
-            auto future = promise.get_future();
-            DiskRequest request = {true, page->data_, page_id,std::move(promise)};
-            disk_scheduler_->Schedule(std::move(request));
-            if(future.get()) {
-              page->is_dirty_ = false;  // Clear the dirty flag after flushing
-            }
-        }
+    if (page->is_dirty_) {
+      auto promise = disk_scheduler_->CreatePromise();
+      auto future = promise.get_future();
+      DiskRequest request = {true, page->data_, page_id, std::move(promise)};
+      disk_scheduler_->Schedule(std::move(request));
+      if (future.get()) {
+        page->is_dirty_ = false;  // Clear the dirty flag after flushing
+      }
+    }
   }
 }
 
 auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
   std::lock_guard<std::mutex> lock(latch_);
   auto page_table_it = page_table_.find(page_id);
-  if(page_table_it == page_table_.end()) {
-        return true;  // Page not found.
+  if (page_table_it == page_table_.end()) {
+    return true;  // Page not found.
   }
 
   frame_id_t frame_id = page_table_it->second;
   Page *page = &pages_[frame_id];
-  if(page->pin_count_ > 0) {
-        return false;  // Page is pinned.
+  if (page->pin_count_ > 0) {
+    return false;  // Page is pinned.
   }
 
-  if(page->is_dirty_) {
-        FlushPage(page_id);  // Flush before deletion.
+  if (page->is_dirty_) {
+    FlushPage(page_id);  // Flush before deletion.
   }
   DeallocatePage(page_id);
   page->ResetMemory();
@@ -249,7 +242,6 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
   page_table_.erase(page_id);
   return true;
 }
-
 
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 

@@ -82,7 +82,6 @@ TEST(TrieStoreTest, MixedTest) {
   }
 }
 
-
 TEST(TrieStoreTest, MixedConcurrentTest) {
   auto store = TrieStore();
 
