@@ -52,7 +52,12 @@ auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & 
   return *this;
 }
 
-void ReadPageGuard::Drop() {guard_.Drop();}
+void ReadPageGuard::Drop() {
+  if(guard_.page_ != nullptr){
+    guard_.page_->RUnlatch();
+  }
+  guard_.Drop();
+}
 
 ReadPageGuard::~ReadPageGuard() {Drop();}  // NOLINT
 
@@ -66,11 +71,17 @@ auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard
 }
 
 void WritePageGuard::Drop() {
+  if (guard_.page_ != nullptr) {
+    // Unlatch the page for write
+    guard_.page_->WUnlatch();
+  }
   guard_.Drop();
 }
 
 WritePageGuard::~WritePageGuard() {
   Drop();
 }
+
+
 
 }  // namespace bustub
