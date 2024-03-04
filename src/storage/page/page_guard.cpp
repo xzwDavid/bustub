@@ -12,11 +12,8 @@ BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept
 
 void BasicPageGuard::Drop() {
   if (page_ != nullptr && bpm_ != nullptr) {
-    if (is_dirty_) {
-      bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
-    } else {
-      bpm_->UnpinPage(page_->GetPageId(), false);
-    }
+    bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
+
     page_ = nullptr;
     bpm_ = nullptr;
     is_dirty_ = false;
@@ -65,6 +62,7 @@ WritePageGuard::WritePageGuard(WritePageGuard &&that) noexcept: guard_(std::move
 
 auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard & {
   if (this != &that) {
+    Drop();
     guard_ = std::move(that.guard_);
   }
   return *this;
