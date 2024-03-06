@@ -13,7 +13,6 @@ BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept
 void BasicPageGuard::Drop() {
   if (page_ != nullptr && bpm_ != nullptr) {
     bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
-
     page_ = nullptr;
     bpm_ = nullptr;
     is_dirty_ = false;
@@ -78,6 +77,18 @@ void WritePageGuard::Drop() {
 
 WritePageGuard::~WritePageGuard() {
   Drop();
+}
+
+auto BasicPageGuard::UpgradeRead() -> ReadPageGuard {
+  auto readPageGuard =  ReadPageGuard(this->bpm_, this->page_);
+  this->Drop();
+  return readPageGuard;
+}
+
+auto BasicPageGuard::UpgradeWrite() -> WritePageGuard {
+  auto writePageGuard =  WritePageGuard(this->bpm_, this->page_);
+  this->Drop();
+  return writePageGuard ;
 }
 
 

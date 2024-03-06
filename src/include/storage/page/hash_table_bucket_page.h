@@ -101,6 +101,7 @@ class HashTableBucketPage {
    */
   void SetOccupied(uint32_t bucket_idx);
 
+  void SetUnOccupied(uint32_t bucket_idx);
   /**
    * Returns whether or not an index is readable (valid key/value pair)
    *
@@ -117,6 +118,7 @@ class HashTableBucketPage {
    */
   void SetReadable(uint32_t bucket_idx);
 
+  void SetUnReadable(uint32_t bucket_idx);
   /**
    * @return the number of readable elements, i.e. current size
    */

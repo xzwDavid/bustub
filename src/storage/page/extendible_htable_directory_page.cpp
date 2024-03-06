@@ -26,7 +26,6 @@ void ExtendibleHTableDirectoryPage::Init(uint32_t max_depth) {
   global_depth_ = 0;
   std::memset(local_depths_, 0, sizeof(local_depths_));
   std::memset(bucket_page_ids_, 0, sizeof(bucket_page_ids_));
-
 }
 
 auto ExtendibleHTableDirectoryPage::HashToBucketIndex(uint32_t hash) const -> uint32_t {
@@ -76,7 +75,14 @@ void ExtendibleHTableDirectoryPage::IncrGlobalDepth() {
 }
 
 void ExtendibleHTableDirectoryPage::DecrGlobalDepth() {
-  throw NotImplementedException("ExtendibleHTableDirectoryPage is not implemented");
+//  throw NotImplementedException("ExtendibleHTableDirectoryPage is not implemented");
+  for(uint32_t i=0; i < (1u << global_depth_);i++){
+    if(local_depths_[i] == global_depth_){
+      return;
+    }
+
+  }
+  global_depth_--;
 }
 
 auto ExtendibleHTableDirectoryPage::CanShrink() -> bool {
