@@ -41,7 +41,11 @@ DiskExtendibleHashTable<K, V, KC>::DiskExtendibleHashTable(const std::string &na
       header_max_depth_(header_max_depth),
       directory_max_depth_(directory_max_depth),
       bucket_max_size_(bucket_max_size) {
-  throw NotImplementedException("DiskExtendibleHashTable is not implemented");
+//  throw NotImplementedException("DiskExtendibleHashTable is not implemented");
+    index_name_ = name;
+    BasicPageGuard header_guard = bpm->NewPageGuarded(&header_page_id_);
+    auto header_page = header_guard.AsMut<ExtendibleHTableHeaderPage>();
+    header_page->Init(1);
 }
 
 /*****************************************************************************
@@ -59,7 +63,35 @@ auto DiskExtendibleHashTable<K, V, KC>::GetValue(const K &key, std::vector<V> *r
 
 template <typename K, typename V, typename KC>
 auto DiskExtendibleHashTable<K, V, KC>::Insert(const K &key, const V &value, Transaction *transaction) -> bool {
-  return false;
+  uint32_t hash_value = Hash(key);
+  BasicPageGuard header_guard = bpm_->FetchPageBasic(header_page_id_);
+  auto header_page = header_guard.AsMut<ExtendibleHTableHeaderPage>();
+  // Assume DirectoryIndex() calculates the directory index from the hash value and current global depth.
+  auto dir_page_id = header_page->GetDirectoryPageId(header_page->HashToDirectoryIndex(hash_value));
+
+  // Fetch the directory page to find the bucket page id.
+  auto directory_page = bpm_->FetchPageBasic(dir_page_id); // Simplified method call
+  auto directory = directory_page.AsMut< ExtendibleHTableDirectoryPage >();
+
+  auto bucket_page_id = directory->GetBucketPageId(directory->HashToBucketIndex(hash_value));
+  auto bucket_page = bpm_->FetchPageBasic(bucket_page_id); // Simplified method call
+  auto bucket = bucket_page.AsMut<ExtendibleHTableBucketPage<K,V,KC>>();
+
+  if (!bucket->IsFull()) {
+    // Insert directly if there is space.
+    bucket->Insert(key, value,cmp_);
+    UnpinPage(bucket_page_id, true); // Unpin with changes
+  } else {
+    // Handle bucket overflow and potentially split.
+    if (!SplitBucket(dir_index, hash_value, key, value)) {
+      // If SplitBucket fails, it means we couldn't insert for some reason.
+      UnpinPage(bucket_page_id, false); // Unpin without changes
+      return false;
+    }
+  }
+
+  // Simplified; real implementation should handle exceptions and edge cases.
+  return true;
 }
 
 template <typename K, typename V, typename KC>
