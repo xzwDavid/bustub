@@ -42,6 +42,11 @@ class ExtendibleHTableHeaderPage {
    */
   void Init(uint32_t max_depth = HTABLE_HEADER_MAX_DEPTH);
 
+  auto SetDepth(uint32_t value) -> bool ;
+
+  auto GetDepth() -> uint32_t ;
+
+  auto GetSize() -> uint32_t ;
   /**
    * Get the directory index that the key is hashed to
    *
@@ -79,6 +84,7 @@ class ExtendibleHTableHeaderPage {
  private:
   page_id_t directory_page_ids_[HTABLE_HEADER_ARRAY_SIZE];
   uint32_t max_depth_;
+
 };
 
 static_assert(sizeof(page_id_t) == 4);
