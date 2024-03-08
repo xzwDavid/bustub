@@ -22,6 +22,22 @@ void ExtendibleHTableHeaderPage::Init(uint32_t max_depth) {
   std::memset(directory_page_ids_, -1, sizeof(directory_page_ids_));
 }
 
+auto ExtendibleHTableHeaderPage::GetSize() -> uint32_t {
+  return 1 << max_depth_;
+}
+
+auto ExtendibleHTableHeaderPage::GetDepth() -> uint32_t {
+  return max_depth_;
+}
+
+auto ExtendibleHTableHeaderPage::SetDepth(uint32_t value) -> bool {
+  if((1 << value) > MaxSize()){
+    throw std::out_of_range("The header page out of range");
+  }
+  max_depth_ = value;
+  return true;
+}
+
 auto ExtendibleHTableHeaderPage::HashToDirectoryIndex(uint32_t hash) const -> uint32_t {
     return hash >> (sizeof(hash)*8 - max_depth_);
 
